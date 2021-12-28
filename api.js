@@ -1,5 +1,6 @@
 "use strict";
 const axios = require("axios");
+const fs = require("fs");
 const express = require('express');
 const app = express();
 const path = require('path');
@@ -34,6 +35,20 @@ router.get('/getReserves/:address',async(req,res) => {
   res.status(statusCode).json(response)
 });
 
+router.get('/checkPairToken/:address',async(req,res) => {
+  let response = {}
+  response.data = ""
+  let statusCode = 200
+
+  const token0 = await checkPairToken(req.params.address);
+  if(token0) {
+
+    response.data = token0
+  }
+
+  res.status(statusCode).json(response)
+});
+
   // CHECK PAIR EXISIT OR NOT //
 
 router.post('/checkPair',async(req,res) => {
@@ -57,6 +72,27 @@ router.post('/checkPair',async(req,res) => {
 });
 
 
+const checkPairToken = async (address) => {
+  let randomIndex = random(0, providerUrls.length - 1)
+  let httpProvider = new Web3.providers.HttpProvider(providerUrls[randomIndex], { timeout: 10000 })
+  let web3http = new Web3(httpProvider);
+
+  let PairContractHTTP = new web3http.eth.Contract(
+    abi.resevers.abi,
+    address.toString()
+  );
+  return new Promise(async (relsove,rejects) => {
+
+    const token0 = await PairContractHTTP.methods.token0().call();
+
+    if(token0){
+      relsove(token0)
+    } else {
+      resolve()
+    }
+  })
+
+}
 const getReserves = async (address) => {
   let randomIndex = random(0, providerUrls.length - 1)
   let httpProvider = new Web3.providers.HttpProvider(providerUrls[randomIndex], { timeout: 10000 })
@@ -85,9 +121,9 @@ router.get('/allPairs/:exchange',async(req,res) => {
   response.data = []
   let statusCode = 200
   let data ;
-  if(req.params.exchange == "PANCAKE"){
+  if(req.params.exchange == "PANCAKESWAP"){
     data = await getPancakePairs();
-  } else if(req.params.exchange == "APE") {
+  } else if(req.params.exchange == "APESWAP") {
     data = await getApePairs();
   }
   else {
@@ -103,7 +139,7 @@ router.get('/allPairs/:exchange',async(req,res) => {
 
 const getPancakePairs = async () => {
   let skip = 0;
-  let take = 1000;
+  let take = 100;
   let data = []
   let id ='';
   do {
@@ -111,11 +147,15 @@ const getPancakePairs = async () => {
       id = data[data.length -1].id
     }
       let result = await axios.post(
-        "https://api.thegraph.com/subgraphs/name/pancakeswap/pairs",
+        // "https://api.thegraph.com/subgraphs/name/pancakeswap/pairs",
+        "https://bsc.streamingfast.io/subgraphs/name/pancakeswap/exchange-v2",
         {
           query: `
             {
-              pairs(first: ${take},where: {id_gt: "${id}"}) {
+              pairs(first: ${take},where: {
+                id_gt: "${id}",reserveUSD_gt: "100000",
+                volumeUSD_gt: "5000"
+              }) {
                 id
                 token0 {
                   id
@@ -137,10 +177,14 @@ const getPancakePairs = async () => {
            data.push(...result.data.data.pairs)
          } 
       }
-      skip= skip+1000;
-    
+      skip= skip+take;
+      console.log(skip)
+      // if(skip >= 100){
+      //   skip = skip+2000;
+      // }
   }
   while (data.length >= skip);
+  fs.writeFileSync('./datas.txt', JSON.stringify(data))
   return data
 }
 const getApePairs = async () => {
@@ -157,9 +201,7 @@ const getApePairs = async () => {
                 where: {
                   reserveUSD_gt: "100000", 
                   volumeUSD_gt: "5000",
-                }, 
-                orderBy: reserveUSD, 
-                orderDirection: desc) {
+                }) {
                 id
                 token0 {
                   id
