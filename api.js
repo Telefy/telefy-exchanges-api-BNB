@@ -18,7 +18,7 @@ const providerUrls = [
   'https://bsc-dataseed.binance.org/',
 ]
 const random = require ('lodash/random');
-const { id } = require("ethers/lib/utils");
+// const { id } = require("ethers/lib/utils");
 
 
 router.get('/getReserves/:address',async(req,res) => {
