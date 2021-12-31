@@ -35,6 +35,20 @@ router.get('/getReserves/:address',async(req,res) => {
   res.status(statusCode).json(response)
 });
 
+router.get('/getTradeInfo/:address',async(req,res) => {
+  let response = {}
+  response.data = []
+  let statusCode = 200
+
+  const resevers = await getTradeInfo(req.params.address);
+  if(resevers.length > 0) {
+
+    response.data = [{reserve0: resevers[0],reserve1: resevers[1],vReserve0: resevers[2],vReserve1: resevers[3]}] 
+  }
+
+  res.status(statusCode).json(response)
+});
+
 router.get('/checkPairToken/:address',async(req,res) => {
   let response = {}
   response.data = ""
@@ -57,15 +71,22 @@ router.post('/checkPair',async(req,res) => {
   let web3http = new Web3(httpProvider);
 
   let response = {}
-  response.data = []
+  response.data = ''
   let statusCode = 200
 
   let PairContractHTTP = new web3http.eth.Contract(
     abi[req.body.exchange].factory,
     factoryAddress.mainnet[req.body.exchange].factory
   );
+    if(req.body.exchange == "KYBER") {
 
-    response.data = await PairContractHTTP.methods.getPair(req.body.token0,req.body.token1).call();
+      let result = await PairContractHTTP.methods.getPools(req.body.token0,req.body.token1).call();
+      if(result.length > 0){
+        response.data = result[0]
+      }
+    } else {
+      response.data = await PairContractHTTP.methods.getPair(req.body.token0,req.body.token1).call();
+    }
     
     res.status(statusCode).json(response)
     
@@ -89,6 +110,27 @@ const checkPairToken = async (address) => {
       relsove(token0)
     } else {
       resolve()
+    }
+  })
+
+}
+const getTradeInfo = async (address) => {
+  let randomIndex = random(0, providerUrls.length - 1)
+  let httpProvider = new Web3.providers.HttpProvider(providerUrls[randomIndex], { timeout: 10000 })
+  let web3http = new Web3(httpProvider);
+
+  let PairContractHTTP = new web3http.eth.Contract(
+    abi.KYBER.pair,
+    address.toString()
+  );
+  return new Promise(async (relsove,rejects) => {
+
+    const _reserves = await PairContractHTTP.methods.getTradeInfo().call();
+
+    if(_reserves){
+      relsove([_reserves._reserve0,_reserves._reserve1,_reserves._vReserve0,_reserves._vReserve1])
+    } else {
+      resolve([])
     }
   })
 
