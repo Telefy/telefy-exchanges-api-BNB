@@ -10,7 +10,7 @@ var bodyParser = require('body-parser');
 const abi = require("./abis");
 const factoryAddress = require("./address");
 
-require("dotenv").config({});
+require("dotenv").config({}); 
 const Web3 = require("web3");
 const providerUrls = [
   'https://bsc-dataseed1.ninicoin.io',
